@@ -16,9 +16,10 @@ where
             use parse_bearer_token::parse_bearer_token;
             let token = &parse_bearer_token(&event)?;
 
-            let body = match event.body() {
+            let body = match event.into_body() {
                 lambda_http::Body::Text(string) => string,
-                _ => unimplemented!(),
+                lambda_http::Body::Binary(v) => String::from_utf8(v.clone())?,
+                lambda_http::Body::Empty => "".to_string(),
             };
 
             let result = fn_fut(pool, token.to_string(), body.to_string()).await?;
