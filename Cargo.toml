@@ -1,0 +1,12 @@
+[package]
+name = "marble_framework"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.71"
+establish_aws_mysql_sqlx = { git = "https://github.com/kano1101/establish_aws_mysql_sqlx.git" }
+get_database_url_for_environment = { git = "https://github.com/kano1101/get_database_url_for_environment.git" }
+lambda_http = "0.8.0"
+parse_bearer_token = { git = "https://github.com/kano1101/parse_bearer_token.git" }
+sqlx = { version = "0.6.3", features = ["runtime-tokio-rustls", "mysql"] }
