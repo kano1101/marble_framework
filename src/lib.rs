@@ -1,6 +1,6 @@
-pub async fn run<FnFut, Fut>(fn_fut: FnFut) -> anyhow::Result<()>
+pub async fn run<'a, FnFut, Fut>(fn_fut: FnFut) -> anyhow::Result<()>
 where
-    FnFut: FnMut(&sqlx::MySqlPool, &str, &str) -> Fut + Send + Clone,
+    FnFut: FnMut(&'a sqlx::MySqlPool, String, String) -> Fut + Send + Clone,
     Fut: std::future::Future<Output = anyhow::Result<String>> + Send,
 {
     use get_database_url_for_environment::get_database_url_for_environment;
@@ -11,7 +11,7 @@ where
 
     use lambda_http::{run, service_fn};
     run(service_fn(move |event| {
-        let mut fn_fut = fn_fut.clone(); // Clone fut inside the closure
+        let mut fn_fut = fn_fut.clone();
         async move {
             use parse_bearer_token::parse_bearer_token;
             let token = &parse_bearer_token(&event)?;
@@ -21,7 +21,7 @@ where
                 _ => unimplemented!(),
             };
 
-            let result = fn_fut(pool, token, body).await?;
+            let result = fn_fut(pool, token.to_string(), body.to_string()).await?;
 
             let response = lambda_http::Response::builder()
                 .status(200)
