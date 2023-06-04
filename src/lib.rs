@@ -1,13 +1,22 @@
-pub async fn run<'a, FnFut, Fut>(fn_fut: FnFut) -> anyhow::Result<()>
+pub async fn run<'a, FnFut, FnFutRet, Mitor, MitorRet>(
+    fn_fut: FnFut,
+    migrator: Option<Mitor>,
+) -> anyhow::Result<()>
 where
-    FnFut: FnMut(&'a sqlx::MySqlPool, String, String) -> Fut + Send + Clone,
-    Fut: std::future::Future<Output = anyhow::Result<String>> + Send,
+    FnFut: FnMut(&'a sqlx::MySqlPool, String, String) -> FnFutRet + Send + Clone,
+    FnFutRet: std::future::Future<Output = anyhow::Result<String>> + Send,
+    Mitor: FnOnce(&'a sqlx::MySqlPool) -> MitorRet,
+    MitorRet: std::future::Future<Output = anyhow::Result<()>> + Send,
 {
     use get_database_url_for_environment::get_database_url_for_environment;
     let url = get_database_url_for_environment().await?;
 
     use establish_aws_mysql_sqlx::get_connection_cache_or_establish;
     let pool = get_connection_cache_or_establish(&url).await?;
+
+    if let Some(migrator) = migrator {
+        migrator(pool).await?;
+    }
 
     use lambda_http::{run, service_fn};
     run(service_fn(move |event| {
