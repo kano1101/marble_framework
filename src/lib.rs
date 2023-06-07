@@ -37,11 +37,14 @@ where
             let (parts, body) = event.into_parts();
             let origin = match origin {
                 Some(origin) => origin,
-                None => parts
+                None => match parts
                     .headers
                     .get("Origin")
                     .ok_or(anyhow::anyhow!("missing Origin header"))?
-                    .to_str()?,
+                    .to_str().ok() {
+                        Some(s) => s,
+                        None => "",
+                    }
             };
             let body = match body {
                 lambda_http::Body::Text(string) => string,
@@ -51,13 +54,17 @@ where
 
             let result = fn_fut(pool, token.to_string(), body.to_string()).await?;
 
-            let response = lambda_http::Response::builder()
+            let mut builder = {
+                lambda_http::Response::builder()
                 .status(200)
                 .header("Content-Type", "application/json")
-                .header("Access-Control-Allow-Credentials", "true")
-                .header("Access-Control-Allow-Methods", methods)
-                .header("Access-Control-Allow-Origin", origin)
                 .header("Access-Control-Allow-Headers", headers)
+                    .header("Access-Control-Allow-Methods", methods)
+            };
+            if !origin.is_empty() {
+                builder = builder.header("Access-Control-Allow-Origin", origin);
+            }
+            let response = builder
                 .body(lambda_http::Body::from(result.to_string()))?;
 
             Ok::<_, anyhow::Error>(response)
