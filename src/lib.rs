@@ -32,6 +32,7 @@ where
                 Some(methods) => methods,
                 None => "GET",
             };
+            let headers = "Origin, Authorization, Accept, X-Requested-With, X-HTTP-Method-Override, Content-Type";
 
             let (parts, body) = event.into_parts();
             let origin = match origin {
@@ -56,10 +57,7 @@ where
                 .header("Access-Control-Allow-Credentials", "true")
                 .header("Access-Control-Allow-Methods", methods)
                 .header("Access-Control-Allow-Origin", origin)
-                .header(
-                    "Access-Control-Allow-Headers",
-                    "Origin,Authorization,Accept,X-Requested-With",
-                )
+                .header("Access-Control-Allow-Headers", headers)
                 .body(lambda_http::Body::from(result.to_string()))?;
 
             Ok::<_, anyhow::Error>(response)
