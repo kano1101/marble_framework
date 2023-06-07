@@ -1,12 +1,14 @@
-pub async fn run<'a, FnFut, FnFutRet, Mitor, MitorRet>(
+pub async fn run<'a, FnFut, FnFutRet, FnFutRes, Mitor, MitorRet, MitorRes>(
     fn_fut: FnFut,
     migrator: Option<Mitor>,
+    origin: &str,
 ) -> anyhow::Result<()>
 where
     FnFut: FnMut(&'a sqlx::MySqlPool, String, String) -> FnFutRet + Send + Clone,
-    FnFutRet: std::future::Future<Output = anyhow::Result<String>> + Send,
+    FnFutRet: std::future::Future<Output = anyhow::Result<FnFutRes>> + Send,
+    FnFutRes: std::fmt::Display,
     Mitor: FnOnce(&'a sqlx::MySqlPool) -> MitorRet,
-    MitorRet: std::future::Future<Output = anyhow::Result<()>> + Send,
+    MitorRet: std::future::Future<Output = anyhow::Result<MitorRes>> + Send,
 {
     use get_database_url_for_environment::get_database_url_for_environment;
     let url = get_database_url_for_environment().await?;
@@ -36,7 +38,8 @@ where
             let response = lambda_http::Response::builder()
                 .status(200)
                 .header("content-type", "application/json")
-                .body(lambda_http::Body::from(result))?;
+                .header("Access-Control-Allow-Origin", origin)
+                .body(lambda_http::Body::from(result.to_string()))?;
 
             Ok::<_, anyhow::Error>(response)
         }
