@@ -1,7 +1,6 @@
 pub async fn run<'a, FnFut, FnFutRet, FnFutRes, Mitor, MitorRet, MitorRes>(
     fn_fut: FnFut,
     migrator: Option<Mitor>,
-    origin: &str,
 ) -> anyhow::Result<()>
 where
     FnFut: FnMut(&'a sqlx::MySqlPool, String, String) -> FnFutRet + Send + Clone,
@@ -27,7 +26,12 @@ where
             use parse_bearer_token::parse_bearer_token;
             let token = &parse_bearer_token(&event)?;
 
-            let body = match event.into_body() {
+            let (parts, body) = event.into_parts();
+            let origin = parts
+                .headers
+                .get("Origin")
+                .ok_or(anyhow::anyhow!("missing Origin header"))?;
+            let body = match body {
                 lambda_http::Body::Text(string) => string,
                 lambda_http::Body::Binary(v) => String::from_utf8(v.clone())?,
                 lambda_http::Body::Empty => "".to_string(),
@@ -37,8 +41,14 @@ where
 
             let response = lambda_http::Response::builder()
                 .status(200)
-                .header("content-type", "application/json")
+                .header("Content-Type", "application/json")
+                .header("Access-Control-Allow-Methods", "OPTIONS,GET,POST")
+                .header("Access-Control-Allow-Credentials", "true")
                 .header("Access-Control-Allow-Origin", origin)
+                .header(
+                    "Access-Control-Allow-Headers",
+                    "Origin,Authorization,Accept,X-Requested-With",
+                )
                 .body(lambda_http::Body::from(result.to_string()))?;
 
             Ok::<_, anyhow::Error>(response)
