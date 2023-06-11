@@ -102,8 +102,8 @@ where
         self.origin = Some(origin);
         self
     }
-    pub fn method(mut self, method: &'a str) -> Self {
-        self.methods = Some(method);
+    pub fn methods(mut self, methods: &'a str) -> Self {
+        self.methods = Some(methods);
         self
     }
 }
