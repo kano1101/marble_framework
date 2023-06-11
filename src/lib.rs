@@ -21,25 +21,25 @@ where
     MitorRet: std::future::Future<Output = anyhow::Result<MitorRes>> + Send,
 {
     #[allow(dead_code)]
-    pub fn fn_fut(&self) -> FnFut {
+    fn fn_fut(&self) -> FnFut {
         self.fn_fut.clone()
     }
     #[allow(dead_code)]
-    pub fn migrator(&self) -> Option<Mitor> {
+    fn migrator(&self) -> Option<Mitor> {
         self.migrator.as_ref().map(|m| m.clone())
     }
     #[allow(dead_code)]
-    pub fn origin(&self) -> Option<&'a str> {
+    fn origin(&self) -> Option<&'a str> {
         self.origin
     }
     #[allow(dead_code)]
-    pub fn methods(&self) -> Option<&'a str> {
+    fn methods(&self) -> Option<&'a str> {
         self.methods
     }
 }
 
 impl<'a, FnFut, FnFutRet, FnFutRes, Mitor, MitorRet, MitorRes>
-    From<Builder<'a, FnFut, FnFutRet, FnFutRes, Mitor, MitorRet, MitorRes>>
+    From<ClientBuilder<'a, FnFut, FnFutRet, FnFutRes, Mitor, MitorRet, MitorRes>>
     for Config<'a, FnFut, FnFutRet, FnFutRes, Mitor, MitorRet, MitorRes>
 where
     FnFut: FnMut(&'a sqlx::MySqlPool, String, String) -> FnFutRet + Send + Clone,
@@ -48,7 +48,7 @@ where
     Mitor: FnOnce(&'a sqlx::MySqlPool) -> MitorRet,
     MitorRet: std::future::Future<Output = anyhow::Result<MitorRes>> + Send,
 {
-    fn from(from: Builder<'a, FnFut, FnFutRet, FnFutRes, Mitor, MitorRet, MitorRes>) -> Self {
+    fn from(from: ClientBuilder<'a, FnFut, FnFutRet, FnFutRes, Mitor, MitorRet, MitorRes>) -> Self {
         Self {
             fn_fut: from.fn_fut,
             migrator: from.migrator,
@@ -58,7 +58,7 @@ where
     }
 }
 
-pub struct Builder<'a, FnFut, FnFutRet, FnFutRes, Mitor, MitorRet, MitorRes>
+pub struct ClientBuilder<'a, FnFut, FnFutRet, FnFutRes, Mitor, MitorRet, MitorRes>
 where
     FnFut: FnMut(&'a sqlx::MySqlPool, String, String) -> FnFutRet + Send + Clone,
     FnFutRet: std::future::Future<Output = anyhow::Result<FnFutRes>> + Send,
@@ -72,7 +72,7 @@ where
     methods: Option<&'a str>,
 }
 impl<'a, FnFut, FnFutRet, FnFutRes, Mitor, MitorRet, MitorRes>
-    Builder<'a, FnFut, FnFutRet, FnFutRes, Mitor, MitorRet, MitorRes>
+    ClientBuilder<'a, FnFut, FnFutRet, FnFutRes, Mitor, MitorRet, MitorRes>
 where
     FnFut: FnMut(&'a sqlx::MySqlPool, String, String) -> FnFutRet + Send + Clone,
     FnFutRet: std::future::Future<Output = anyhow::Result<FnFutRes>> + Send,
