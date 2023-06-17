@@ -164,8 +164,26 @@ where
     MitorRet: std::future::Future<Output = anyhow::Result<MitorRes>> + Send,
 {
     pub async fn run(&'a self) -> anyhow::Result<()> {
+        use dotenv::dotenv;
+        dotenv().ok();
+
+        let region_string = std::env::var("REGION")?;
+        let region_str = match &region_string[..] {
+            "ap-northeast-1" => "ap-northeast-1",
+            "ap-northeast-2" => "ap-northeast-2",
+            "ap-northeast-3" => "ap-northeast-3",
+            _ => unimplemented!(),
+        };
+        let region: &str = self.config.region().unwrap_or_else(|| region_str);
+
+        let user_pool_id: String = match self.config.user_pool_id() {
+            Some(id) => id,
+            None => std::env::var("USER_POOL_ID")?,
+        };
+        let user_pool_id = user_pool_id.as_ref();
+
         use get_database_url_for_environment::get_database_url_for_environment;
-        let url = get_database_url_for_environment().await?;
+        let url = get_database_url_for_environment(Some(region), &user_pool_id).await?;
 
         use establish_aws_mysql_sqlx::get_connection_cache_or_establish;
         let pool = get_connection_cache_or_establish(&url).await?;
@@ -186,9 +204,6 @@ where
                     None => "GET".to_string(),
                 };
                 let headers = "Origin, Authorization, Accept, X-Requested-With, X-HTTP-Method-Override, Content-Type";
-
-                use dotenv::dotenv;
-                dotenv().ok();
 
                 let (parts, body) = event.into_parts();
 
@@ -211,16 +226,6 @@ where
                     lambda_http::Body::Binary(v) => String::from_utf8(v.clone())?,
                     lambda_http::Body::Empty => "".to_string(),
                 };
-
-                let region_string = std::env::var("REGION")?;
-                let region_str = match &region_string[..] {
-                    "ap-northeast-1" => "ap-northeast-1",
-                    "ap-northeast-2" => "ap-northeast-2",
-                    "ap-northeast-3" => "ap-northeast-3",
-                    _ => unimplemented!(),
-                };
-                let region = self.config.region().unwrap_or_else(|| region_str);
-                let user_pool_id = self.config.user_pool_id().unwrap_or_else(|| std::env::var("USER_POOL_ID").expect("missing USER_POOL_ID in env"));
 
                 let jwks_url =
                     format!("https://cognito-idp.{region}.amazonaws.com/{user_pool_id}/.well-known/jwks.json");
