@@ -9,7 +9,7 @@ where
 {
     _phantom: std::marker::PhantomData<&'a UserId>,
     fn_fut: FnFut,
-    region: Option<String>,
+    region: Option<&'static str>,
     user_pool_id: Option<String>,
     migrator: Option<Mitor>,
     origin: Option<String>,
@@ -29,8 +29,8 @@ where
     fn fn_fut(&'a self) -> FnFut {
         self.fn_fut.clone()
     }
-    fn region(&'a self) -> Option<String> {
-        self.region.clone()
+    fn region(&'a self) -> Option<&'static str> {
+        self.region
     }
     fn user_pool_id(&'a self) -> Option<String> {
         self.user_pool_id.clone()
@@ -86,7 +86,7 @@ where
 {
     _phantom: std::marker::PhantomData<&'a UserId>,
     fn_fut: FnFut,
-    region: Option<String>,
+    region: Option<&'static str>,
     user_pool_id: Option<String>,
     migrator: Option<Mitor>,
     origin: Option<String>,
@@ -119,8 +119,8 @@ where
             methods: None,
         }
     }
-    pub fn set_region(mut self, region: &'a str) -> Self {
-        self.region = Some(region.to_string());
+    pub fn set_region(mut self, region: &'static str) -> Self {
+        self.region = Some(region);
         self
     }
     pub fn set_user_pool_id(mut self, user_pool_id: &'a str) -> Self {
@@ -195,10 +195,7 @@ where
                 let origin = match self.config.origin.as_ref() {
                     Some(origin) => origin.clone(),
                     None => match std::env::var("ORIGIN") {
-                        Ok(ok) => {
-                            // let ok: &'static str = &ok;
-                            ok
-                        },
+                        Ok(ok) => ok,
                         Err(_) => match parts
                         .headers
                         .get("Origin")
@@ -215,7 +212,14 @@ where
                     lambda_http::Body::Empty => "".to_string(),
                 };
 
-                let region = self.config.region().unwrap_or_else(|| std::env::var("REGION").expect("missing REGION in env"));
+                let region_string = std::env::var("REGION")?;
+                let region_str = match &region_string[..] {
+                    "ap-northeast-1" => "ap-northeast-1",
+                    "ap-northeast-2" => "ap-northeast-2",
+                    "ap-northeast-3" => "ap-northeast-3",
+                    _ => unimplemented!(),
+                };
+                let region = self.config.region().unwrap_or_else(|| region_str);
                 let user_pool_id = self.config.user_pool_id().unwrap_or_else(|| std::env::var("USER_POOL_ID").expect("missing USER_POOL_ID in env"));
 
                 let jwks_url =
