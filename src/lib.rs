@@ -167,7 +167,8 @@ where
         use dotenv::dotenv;
         dotenv().ok();
 
-        let region_string = std::env::var("REGION")?;
+        let region_string = std::env::var("REGION")
+            .map_err(|_| anyhow::anyhow!("missing environment variable REGION"))?;
         let region_str = match &region_string[..] {
             "ap-northeast-1" => "ap-northeast-1",
             "ap-northeast-2" => "ap-northeast-2",
@@ -178,7 +179,8 @@ where
 
         let user_pool_id: String = match self.config.user_pool_id() {
             Some(id) => id,
-            None => std::env::var("USER_POOL_ID")?,
+            None => std::env::var("USER_POOL_ID")
+                .map_err(|_| anyhow::anyhow!("missing environment variable USER_POOL_ID"))?,
         };
         let user_pool_id = user_pool_id.as_ref();
 
