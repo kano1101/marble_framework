@@ -166,16 +166,22 @@ where
     pub async fn run(&'a self) -> anyhow::Result<()> {
         use dotenv::dotenv;
         dotenv().ok();
+        tracing::info!("dotenv().ok()を実行しました。");
 
         let region_string = std::env::var("REGION")
             .map_err(|_| anyhow::anyhow!("missing environment variable REGION"))?;
+        tracing::info!("region_stringを取得しました。");
+
         let region_str = match &region_string[..] {
             "ap-northeast-1" => "ap-northeast-1",
             "ap-northeast-2" => "ap-northeast-2",
             "ap-northeast-3" => "ap-northeast-3",
             _ => unimplemented!(),
         };
+        tracing::info!("region_strを取得しました。");
+
         let region: &str = self.config.region().unwrap_or_else(|| region_str);
+        tracing::info!("regionを取得しました。");
 
         let user_pool_id: String = match self.config.user_pool_id() {
             Some(id) => id,
@@ -183,12 +189,15 @@ where
                 .map_err(|_| anyhow::anyhow!("missing environment variable USER_POOL_ID"))?,
         };
         let user_pool_id = user_pool_id.as_ref();
+        tracing::info!("user_pool_idを取得しました。");
 
         use get_database_url_for_environment::get_database_url_for_environment;
         let url = get_database_url_for_environment(Some(region), &user_pool_id).await?;
+        tracing::info!("データベースのURLを取得しました。");
 
         use establish_aws_mysql_sqlx::get_connection_cache_or_establish;
         let pool = get_connection_cache_or_establish(&url).await?;
+        tracing::info!("コネクションを取得しました。");
 
         if let Some(migrator) = self.config.migrator.clone() {
             migrator(pool).await?;
@@ -200,12 +209,14 @@ where
             async move {
                 use parse_bearer_token::parse_bearer_token;
                 let token = &parse_bearer_token(&event)?;
+                tracing::info!("トークンを取得しました。");
 
                 let methods = match self.config.methods.as_ref() {
                     Some(methods) => methods.clone(),
                     None => "GET".to_string(),
                 };
                 let headers = "Origin, Authorization, Accept, X-Requested-With, X-HTTP-Method-Override, Content-Type";
+                tracing::info!("リクエストヘッダーを設定しました。");
 
                 let (parts, body) = event.into_parts();
 
@@ -214,28 +225,33 @@ where
                     None => match std::env::var("ORIGIN") {
                         Ok(ok) => ok,
                         Err(_) => match parts
-                        .headers
-                        .get("Origin")
-                        .ok_or(anyhow::anyhow!("missing Origin header"))?
-                        .to_str().ok() {
-                            Some(s) => s.to_string(),
-                            None => "".to_string(),
-                        },
+                            .headers
+                            .get("Origin")
+                            .ok_or(anyhow::anyhow!("missing Origin header"))?
+                            .to_str().ok() {
+                                Some(s) => s.to_string(),
+                                None => "".to_string(),
+                            },
                     }
                 };
+                tracing::info!("originを取得しました。");
                 let body = match body {
                     lambda_http::Body::Text(string) => string,
                     lambda_http::Body::Binary(v) => String::from_utf8(v.clone())?,
                     lambda_http::Body::Empty => "".to_string(),
                 };
+                tracing::info!("bodyを取得しました。");
 
                 let jwks_url =
                     format!("https://cognito-idp.{region}.amazonaws.com/{user_pool_id}/.well-known/jwks.json");
+                tracing::info!("jwks_urlを取得しました。");
 
                 use decode_token_by_jwks::decode_user_sub_from_token;
                 let user_id = decode_user_sub_from_token(&token, &jwks_url).await?;
+                tracing::info!("user_idを取得しました。");
 
                 let result = fn_fut(pool, user_id.into(), body.to_string()).await?;
+                tracing::info!("サービス本体を実行しました。");
 
                 let mut builder = {
                     lambda_http::Response::builder()
@@ -244,11 +260,13 @@ where
                         .header("Access-Control-Allow-Headers", headers)
                         .header("Access-Control-Allow-Methods", methods)
                 };
+                tracing::info!("HTTPレスポンスビルダーを構築しました。");
                 if !origin.is_empty() {
                     builder = builder.header("Access-Control-Allow-Origin", origin);
                 }
                 let response = builder
                     .body(lambda_http::Body::from(result.to_string()))?;
+                tracing::info!("HTTPレスポンスを取得しました。");
 
                 Ok::<_, anyhow::Error>(response)
             }
